@@ -9,9 +9,18 @@
 1. V HACS pridajte `https://github.com/tommyzacek/hue-reconfigo` ako vlastný repozitár typu **Integration**.
 2. Stiahnite požadované vydanie a reštartujte Home Assistant. Pre predbežné vydania povoľte ich zobrazovanie v HACS.
 3. V **Nastavenia → Zariadenia a služby → Pridať integráciu** vyberte Hue Reconfigo a existujúci Hue Bridge.
-4. Otvorte bočný panel **Hue Reconfigo**. Ovládače sú rozdelené na Dial, Button, Dimmer a Motion.
+4. Potvrďte adresu Bridge. Stlačte fyzické párovacie tlačidlo tohto Bridge a potom odošlite formulár.
+5. Otvorte bočný panel **Hue Reconfigo**. Ovládače sú rozdelené na Dial, Button, Dimmer a Motion.
 
 Ozubené koliesko vedľa názvu Bridge otvorí spoločné nastavenia priamo v paneli. Dostupné zostávajú aj štandardné nastavenia integrácie v Zariadenia a služby. Panel nevyžaduje samostatnú inštaláciu, nevytvára ďalší Bridge ani duplicitné entity a sám nepridáva pravidelné dopytovanie.
+
+## Párovanie a obnovenie pripojenia
+
+Hue Reconfigo si po stlačení fyzického párovacieho tlačidla Bridge vytvorí a uloží vlastný aplikačný kľúč. Kľúč oficiálnej integrácie Hue nepoužíva ani nekopíruje. Oficiálna integrácia zostáva potrebná na výber Bridge, priradenie zariadení a entít aj príjem jej udalostí a stavov senzorov.
+
+Pri aktualizácii z 1.1.0 a starších dokončite nové overenie, ktoré Home Assistant vyžiada pri existujúcej položke Hue Reconfigo. Integráciu nemažte a nepridávajte znova: spárovanie upraví pripojenie a zachová identifikátory, ovládače aj ich nastavenia. Do dokončenia párovania nie je ovládanie cez Hue Reconfigo dostupné; oficiálna integrácia Hue používa vlastné pripojenie ďalej.
+
+Ak sa zmení adresa Bridge alebo zrušíte jeho kľúč pre Hue Reconfigo, otvorte **Prekonfigurovať** pri položke Hue Reconfigo v **Nastavenia → Zariadenia a služby** a znova ho spárujte. Zadávajte iba IP adresu alebo názov Bridge, bez `http://`, `https://`, portu a cesty. Adresa iného Bridge sa odmietne. Pri chybe pripojenia opravte adresu či sieť a skúste to znova; upozornenie na párovacie tlačidlo znamená, že je potrebné stlačiť fyzické tlačidlo a znova odoslať formulár.
 
 ## Blokovať správanie entitou
 

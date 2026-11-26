@@ -12,9 +12,10 @@ from homeassistant.config_entries import (
     OptionsFlow,
     SubentryFlowResult,
 )
+from homeassistant.const import CONF_API_KEY, CONF_HOST
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import section
-from homeassistant.helpers import selector
+from homeassistant.helpers import aiohttp_client, selector
 
 from .api import BridgeError
 from .bindings import GESTURES, form_values, parse_form
@@ -36,6 +37,7 @@ from .motion import DEFAULTS as MOTION_DEFAULTS
 from .motion import START_DEFAULTS, parse_motion
 from .motion_bridge import save_settings, sensor_settings
 from .motion_schedule import periods_for, validate_periods
+from .pairing import LinkButtonNotPressed, WrongBridge, async_pair_bridge, normalize_host
 
 
 def select(options: dict[str, str]) -> selector.SelectSelector:
@@ -469,9 +471,23 @@ class HueReconfigoFlow(ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         return HueReconfigoOptionsFlow()
 
+    def __init__(self) -> None:
+        self._hue_entry_id: str | None = None
+        self._bridge_title = ""
+        self._host = ""
+        self._expected_bridge_id: str | None = None
+        self._pairing_entry: ConfigEntry | None = None
+
+    def _select_bridge(self, hue_entry: ConfigEntry) -> None:
+        """Use official Hue metadata for selection, never its application key."""
+        self._hue_entry_id = hue_entry.entry_id
+        self._bridge_title = hue_entry.title
+        self._host = hue_entry.data.get(CONF_HOST, "")
+        self._expected_bridge_id = hue_entry.unique_id
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         bridges = {
-            entry.entry_id: entry.title
+            entry.entry_id: entry
             for entry in self.hass.config_entries.async_entries(HUE_DOMAIN)
             if entry.data.get("api_version") == 2 and entry.state is ConfigEntryState.LOADED
         }
@@ -483,11 +499,90 @@ class HueReconfigoFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_abort(reason="no_hue")
             await self.async_set_unique_id(entry_id)
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title=f"Hue Reconfigo – {bridges[entry_id]}", data={CONF_HUE_ENTRY: entry_id}
-            )
+            self._select_bridge(bridges[entry_id])
+            return await self.async_step_pair()
         return self.async_show_form(
-            step_id="user", data_schema=p.Schema({p.Required(CONF_HUE_ENTRY): select(bridges)})
+            step_id="user",
+            data_schema=p.Schema(
+                {
+                    p.Required(CONF_HUE_ENTRY): select(
+                        {key: entry.title for key, entry in bridges.items()}
+                    )
+                }
+            ),
+        )
+
+    async def _pair_existing(self, entry: ConfigEntry) -> ConfigFlowResult:
+        source = self.hass.config_entries.async_get_entry(entry.data[CONF_HUE_ENTRY])
+        if source is None or source.domain != HUE_DOMAIN or source.data.get("api_version") != 2:
+            return self.async_abort(reason="no_hue")
+        self._select_bridge(source)
+        self._pairing_entry = entry
+        self._host = entry.data.get(CONF_HOST) or self._host
+        self._expected_bridge_id = entry.data.get("bridge_id") or self._expected_bridge_id
+        await self.async_set_unique_id(entry.unique_id or source.entry_id)
+        return await self.async_step_pair()
+
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
+        """Authorize existing entries without replacing their controller configuration."""
+        return await self._pair_existing(self._get_reauth_entry())
+
+    async def async_step_reconfigure(self, user_input=None) -> ConfigFlowResult:
+        """Allow a changed address or a replacement key for the same physical Bridge."""
+        return await self._pair_existing(self._get_reconfigure_entry())
+
+    async def async_step_pair(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors = {}
+        if self._hue_entry_id is None or not self._expected_bridge_id:
+            return self.async_abort(reason="no_hue")
+        if user_input is not None:
+            self._host = user_input.get(CONF_HOST, "")
+            try:
+                host = normalize_host(self._host)
+            except BridgeError:
+                errors[CONF_HOST] = "invalid_host"
+            else:
+                try:
+                    key = await async_pair_bridge(
+                        aiohttp_client.async_get_clientsession(self.hass, verify_ssl=False),
+                        host,
+                        self._expected_bridge_id,
+                    )
+                except LinkButtonNotPressed:
+                    errors["base"] = "link_button_not_pressed"
+                except WrongBridge:
+                    errors["base"] = "wrong_bridge"
+                except BridgeError:
+                    errors["base"] = "cannot_connect"
+                else:
+                    data = {
+                        CONF_HUE_ENTRY: self._hue_entry_id,
+                        CONF_HOST: host,
+                        CONF_API_KEY: key,
+                        "bridge_id": self._expected_bridge_id,
+                    }
+                    if self._pairing_entry is not None:
+                        update = (
+                            self.async_update_and_abort
+                            if self._pairing_entry.update_listeners
+                            else self.async_update_reload_and_abort
+                        )
+                        return update(
+                            self._pairing_entry,
+                            data_updates=data,
+                            reason=(
+                                "reauth_successful"
+                                if self.context.get("source") == "reauth"
+                                else "reconfigure_successful"
+                            ),
+                        )
+                    return self.async_create_entry(
+                        title=f"Hue Reconfigo – {self._bridge_title}", data=data
+                    )
+        return self.async_show_form(
+            step_id="pair",
+            data_schema=p.Schema({p.Required(CONF_HOST, default=self._host): str}),
+            errors=errors,
         )
 
 

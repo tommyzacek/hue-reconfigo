@@ -23,14 +23,17 @@ Vyžaduje **Home Assistant 2026.10.1 alebo novší**, **Hue Bridge s API v2** a 
 1. Do HACS pridajte `https://github.com/tommyzacek/hue-reconfigo` ako vlastný repozitár typu **Integration**.
 2. Stiahnite vydanie a reštartujte Home Assistant.
 3. V **Nastavenia → Zariadenia a služby** pridajte **Hue Reconfigo** a vyberte existujúci Hue Bridge.
-4. V Hue nastavte príslušenstvo na **Konfigurovať v inej aplikácii**. Vypnite konkurenčné automatizácie pre rovnaké vstupy; oficiálnu Hue integráciu ponechajte zapnutú.
-5. Ako správca otvorte bočný panel **Hue Reconfigo**. Vyberte ovládač, nastavte ciele/akcie a zapnite ovládanie. Koliesko vedľa Bridge otvorí spoločné nastavenia. Po aktualizáciách obnovte stránku.
+4. Potvrďte adresu Bridge, stlačte jeho fyzické párovacie tlačidlo a odošlite formulár. Hue Reconfigo si vytvorí vlastný aplikačný kľúč.
+5. V Hue nastavte príslušenstvo na **Konfigurovať v inej aplikácii**. Vypnite konkurenčné automatizácie pre rovnaké vstupy; oficiálnu Hue integráciu ponechajte zapnutú.
+6. Ako správca otvorte bočný panel **Hue Reconfigo**. Vyberte ovládač, nastavte ciele/akcie a zapnite ovládanie. Koliesko vedľa Bridge otvorí spoločné nastavenia. Po aktualizáciách obnovte stránku.
 
 Po stiahnutí a reštarte Home Assistanta:
 
 [![Pridať integráciu](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=hue_reconfigo)
 
 Ručná inštalácia: skopírujte `custom_components/hue_reconfigo` do priečinka `custom_components` v konfigurácii HA a reštartujte. Bočný panel je súčasťou integrácie.
+
+**Aktualizácia z 1.1.0 a starších:** Home Assistant raz vyžiada spárovanie. Dokončite ho pri existujúcej položke Hue Reconfigo; nastavenia ovládačov zostávajú uložené. [Párovanie a obnovenie pripojenia](docs/sk/bridge.md#párovanie-a-obnovenie-pripojenia).
 
 ## Používateľské návody
 

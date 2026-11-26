@@ -82,15 +82,31 @@
     "step": {
       "user": {
         "title": "Vyberte Hue Bridge",
-        "description": "Vyberte načítanú oficiálnu integráciu Philips Hue v2. Ďalšie párovanie nie je potrebné.",
+        "description": "Vyberte načítanú oficiálnu integráciu Philips Hue v2. Hue Reconfigo sa potom s týmto Bridge spáruje pomocou vlastného aplikačného kľúča.",
         "data": {
           "hue_entry_id": "Hue Bridge"
+        }
+      },
+      "pair": {
+        "title": "Spárovať Hue Reconfigo s Bridge",
+        "description": "Skontrolujte adresu vybraného Bridge, stlačte jeho fyzické párovacie tlačidlo a odošlite formulár. Hue Reconfigo vytvorí vlastný aplikačný kľúč. Doterajšie nastavenia ovládačov sa zachovajú.",
+        "data": {
+          "host": "Adresa Bridge"
         }
       }
     },
     "abort": {
       "no_hue": "Najprv nastavte a načítajte oficiálnu integráciu Philips Hue v2.",
-      "already_configured": "Tento Bridge je už nastavený."
+      "already_configured": "Tento Bridge je už nastavený.",
+      "reauth_successful": "Bridge je znova spárovaný. Doterajšie nastavenia zostali zachované.",
+      "reconfigure_successful": "Pripojenie k Bridge bolo upravené. Doterajšie nastavenia zostali zachované.",
+      "wrong_account": "Spárujte Bridge, ktorý už je vybraný pre túto integráciu."
+    },
+    "error": {
+      "link_button_not_pressed": "Stlačte fyzické párovacie tlačidlo na vybranom Hue Bridge a skúste to znova.",
+      "cannot_connect": "K Hue Bridge sa nedá pripojiť. Skontrolujte jeho adresu a sieťové pripojenie.",
+      "wrong_bridge": "Na tejto adrese je iný Hue Bridge. Použite Bridge vybraný pre túto integráciu.",
+      "invalid_host": "Zadajte platnú IP adresu alebo názov Bridge, bez URL, portu a cesty."
     }
   },
   "options": {

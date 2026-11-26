@@ -22,6 +22,7 @@ async def test_one_authenticated_batch_request(resource):
     assert args[0].endswith("/resource/relative_rotary")
     assert kwargs["headers"] == {"hue-application-key": "test-only-key"}
     assert kwargs["timeout"].total == 3
+    assert kwargs["allow_redirects"] is False
 
 
 @pytest.mark.parametrize(
@@ -72,6 +73,7 @@ async def test_native_brightness_transition_and_stop_use_hue_v2_resources():
     }
     assert calls[1].kwargs["json"] == {"dimming_delta": {"action": "stop"}}
     assert all(call.kwargs["headers"] == {"hue-application-key": "test-only-key"} for call in calls)
+    assert all(call.kwargs["allow_redirects"] is False for call in calls)
 
 
 async def test_bridge_current_brightness_comes_from_resource_readback():
@@ -133,6 +135,7 @@ async def test_sse_frame_boundaries_keep_individual_reports():
     assert kwargs["headers"]["Accept"] == "text/event-stream"
     assert "Last-Event-ID" not in kwargs["headers"]
     assert kwargs["timeout"].total is None
+    assert kwargs["allow_redirects"] is False
 
 
 async def test_sse_eof_causes_reconnect_instead_of_busy_loop():
@@ -158,3 +161,75 @@ async def test_device_resources_are_discovered_once_without_button_poll_traffic(
 async def test_device_discovery_rejects_invalid_resource_lists(data):
     with pytest.raises(BridgeError):
         await client({"data": data}).device_resources()
+
+
+@pytest.mark.parametrize(
+    "method",
+    [
+        "rotary_resources",
+        "device_resources",
+        "button_resources",
+        "read_brightness",
+        "brightness_transition",
+        "button_events",
+    ],
+)
+@pytest.mark.parametrize("status", [401, 403])
+async def test_revoked_own_key_is_an_auth_failure_even_without_json(method, status):
+    from custom_components.hue_reconfigo.api import BridgeAuthenticationError
+
+    api = client({}, status=status)
+    reply = api.session.get.return_value.__aenter__.return_value
+    reply.json.side_effect = ValueError("non-JSON rejection")
+    api.session.put.return_value.__aenter__ = AsyncMock(return_value=reply)
+    api.session.put.return_value.__aexit__ = AsyncMock(return_value=False)
+    with pytest.raises(BridgeAuthenticationError):
+        if method == "button_events":
+            await anext(api.button_events())
+        elif method == "read_brightness":
+            await api.read_brightness("light", "light-id")
+        elif method == "brightness_transition":
+            await api.brightness_transition("light", "light-id", 50, 500)
+        else:
+            await getattr(api, method)()
+    reply.json.assert_not_awaited()
+    http = api.session.put if method == "brightness_transition" else api.session.get
+    assert http.call_args.kwargs["allow_redirects"] is False
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [[{"error": {"type": 1}}], {"errors": [{"type": 1, "description": "secret server text"}]}],
+)
+async def test_unauthorized_body_surfaces_as_auth_failure_without_server_text(payload):
+    from custom_components.hue_reconfigo.api import BridgeAuthenticationError
+
+    with pytest.raises(BridgeAuthenticationError) as exc:
+        await client(payload).rotary_resources()
+    assert "secret" not in str(exc.value)
+
+
+@pytest.mark.parametrize("status", [401, 403])
+async def test_motion_requests_surface_auth_failure_before_decoding(status):
+    from custom_components.hue_reconfigo.api import BridgeAuthenticationError
+    from custom_components.hue_reconfigo.motion_bridge import request
+
+    api = client({}, status=status)
+    reply = api.session.get.return_value.__aenter__.return_value
+    reply.json.side_effect = ValueError("non-JSON rejection")
+    api.session.put.return_value.__aenter__ = AsyncMock(return_value=reply)
+    with pytest.raises(BridgeAuthenticationError):
+        await request(api, "motion", "motion-id")
+    with pytest.raises(BridgeAuthenticationError):
+        await request(api, "motion", "motion-id", {"sensitivity": {"sensitivity": 1}})
+    reply.json.assert_not_awaited()
+    assert api.session.get.call_args.kwargs["allow_redirects"] is False
+    assert api.session.put.call_args.kwargs["allow_redirects"] is False
+
+
+async def test_motion_unauthorized_body_surfaces_as_auth_failure():
+    from custom_components.hue_reconfigo.api import BridgeAuthenticationError
+    from custom_components.hue_reconfigo.motion_bridge import request
+
+    with pytest.raises(BridgeAuthenticationError):
+        await request(client({"errors": [{"type": 1}]}), "motion", "motion-id")

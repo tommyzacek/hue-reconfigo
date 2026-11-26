@@ -23,14 +23,17 @@ Requires **Home Assistant 2026.10.1 or newer**, a **Hue Bridge with API v2** and
 1. Add `https://github.com/tommyzacek/hue-reconfigo` to HACS custom repositories as an **Integration**.
 2. Download a release and restart Home Assistant.
 3. Add **Hue Reconfigo** in **Settings → Devices & services**, then select your existing Hue Bridge.
-4. In the Hue app, set managed accessories to **Configure in another app**. Disable competing automations for the same inputs; keep the official Hue integration enabled.
-5. Open **Hue Reconfigo** in the sidebar as an administrator. Select a controller, configure its targets/actions and enable control. The Bridge gear opens shared settings. Refresh the browser after updates.
+4. Confirm the Bridge address, press its physical link button and submit to create a separate Hue Reconfigo application key.
+5. In the Hue app, set managed accessories to **Configure in another app**. Disable competing automations for the same inputs; keep the official Hue integration enabled.
+6. Open **Hue Reconfigo** in the sidebar as an administrator. Select a controller, configure its targets/actions and enable control. The Bridge gear opens shared settings. Refresh the browser after updates.
 
 After downloading and restarting Home Assistant:
 
 [![Add integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=hue_reconfigo)
 
 Manual installation: copy `custom_components/hue_reconfigo` into HA’s `custom_components` directory and restart. The sidebar panel is included.
+
+**Updating from 1.1.0 or earlier:** Home Assistant will request pairing once. Complete it on the existing Hue Reconfigo entry; controller settings remain saved. [Pairing and reconnection](docs/en/bridge.md#pairing-and-reconnection).
 
 ## User guides
 

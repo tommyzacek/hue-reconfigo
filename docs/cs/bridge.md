@@ -9,9 +9,18 @@
 1. V HACS přidejte `https://github.com/tommyzacek/hue-reconfigo` jako vlastní repozitář typu **Integration**.
 2. Stáhněte požadované vydání a restartujte Home Assistant. Pro předběžná vydání povolte jejich zobrazování v HACS.
 3. V **Nastavení → Zařízení a služby → Přidat integraci** vyberte Hue Reconfigo a existující Hue Bridge.
-4. Otevřete postranní panel **Hue Reconfigo**. Ovladače jsou rozdělené na Dial, Button, Dimmer a Motion.
+4. Potvrďte adresu Bridge. Stiskněte fyzické párovací tlačítko tohoto Bridge a poté odešlete formulář.
+5. Otevřete postranní panel **Hue Reconfigo**. Ovladače jsou rozdělené na Dial, Button, Dimmer a Motion.
 
 Ozubené kolo vedle názvu Bridge otevře společné nastavení přímo v panelu. Zůstává dostupné i standardní nastavení integrace v Zařízení a služby. Panel nevyžaduje samostatnou instalaci, nevytváří další Bridge ani duplicitní entity a sám nepřidává pravidelné dotazování.
+
+## Párování a obnovení připojení
+
+Hue Reconfigo si po stisku fyzického párovacího tlačítka Bridge vytvoří a uloží vlastní aplikační klíč. Klíč oficiální integrace Hue nepoužívá ani nekopíruje. Oficiální integrace zůstává potřebná pro výběr Bridge, přiřazení zařízení a entit i příjem jejích událostí a stavů senzorů.
+
+Při aktualizaci z 1.1.0 a starších dokončete nové ověření, které Home Assistant vyžádá u stávající položky Hue Reconfigo. Integraci nemažte a nepřidávejte znovu: spárování upraví připojení a zachová identifikátory, ovladače i jejich nastavení. Do dokončení párování není ovládání přes Hue Reconfigo dostupné; oficiální integrace Hue používá vlastní připojení dál.
+
+Pokud se změní adresa Bridge nebo zrušíte jeho klíč pro Hue Reconfigo, otevřete **Překonfigurovat** u položky Hue Reconfigo v **Nastavení → Zařízení a služby** a znovu ho spárujte. Zadávejte pouze IP adresu nebo název Bridge, bez `http://`, `https://`, portu a cesty. Adresa jiného Bridge se odmítne. Při chybě připojení opravte adresu či síť a zkuste to znovu; upozornění na párovací tlačítko znamená, že je potřeba stisknout fyzické tlačítko a znovu odeslat formulář.
 
 ## Blokovat chování entitou
 

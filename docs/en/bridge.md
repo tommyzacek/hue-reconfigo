@@ -9,9 +9,18 @@
 1. Add `https://github.com/tommyzacek/hue-reconfigo` to HACS as a custom repository of type **Integration**.
 2. Download the desired release and restart Home Assistant. Enable pre-release visibility in HACS if you want pre-releases.
 3. In **Settings → Devices & services → Add integration**, choose Hue Reconfigo and your existing Hue Bridge.
-4. Open **Hue Reconfigo** in the sidebar. Controllers are grouped into Dial, Button, Dimmer and Motion.
+4. Confirm the Bridge address. Press the physical link button on that Bridge, then submit the form.
+5. Open **Hue Reconfigo** in the sidebar. Controllers are grouped into Dial, Button, Dimmer and Motion.
 
 The gear beside the Bridge name opens shared settings directly in the panel. Standard integration settings remain available in Devices & services too. The panel needs no separate installation, creates no extra Bridge or duplicate entities and adds no periodic polling itself.
+
+## Pairing and reconnection
+
+Hue Reconfigo creates and stores its own application key after you press the Bridge's physical link button. It does not use or copy the key belonging to the official Hue integration. The official integration remains required for selecting the Bridge, identifying devices/entities and receiving its events and sensor states.
+
+When updating from 1.1.0 or earlier, complete the reauthentication requested by Home Assistant on the existing Hue Reconfigo entry. Do not delete and add the integration again: pairing updates its connection while preserving entry IDs, controllers and settings. Until pairing is complete, Hue Reconfigo control is unavailable; the official Hue integration keeps its own connection.
+
+If the Bridge address changes or its Hue Reconfigo key is revoked, use **Reconfigure** on the Hue Reconfigo entry in **Settings → Devices & services** and pair again. Enter only the Bridge IP address or hostname, without `http://`, `https://`, a port or a path. An address for another Bridge is rejected. A connection failure can be retried after correcting the address or network; a link-button message means you need to press the physical button and submit again.
 
 ## Block control by entity
 

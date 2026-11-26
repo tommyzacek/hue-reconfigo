@@ -18,7 +18,7 @@ CI runs tests, Ruff, hassfest and HACS validation. HACS custom repository instal
 
 ## Connection and event handling
 
-The official Hue integration must remain configured and loaded. Hue Reconfigo reads its host/application key in memory and uses HA's shared HTTP session. No extra pairing is needed; the key is not copied into companion configuration or diagnostics. The official integration's credential field names are an implementation dependency. Bridge HTTPS certificate verification follows the existing local Hue approach and is disabled for these requests.
+The official Hue integration remains configured and loaded for Bridge selection, device/entity mapping and native events and sensor states. Hue Reconfigo pairs separately after a physical Bridge link-button press and stores its own host and application key in its own config entry. All of its direct REST, SSE and motion configuration requests use that key; it never reads the official integration's application key. Reauthentication updates the same entry and keeps options, controller subentries and identifiers. Existing entries without an owned key require this pairing once before control resumes. Bridge HTTPS certificate verification follows the existing local Hue approach and is disabled for these requests.
 
 REST snapshots and timestamped button SSE reports share a gesture state machine. Missing transitions wait for SSE history; duplicate/old reports are ignored. Startup/reconnection establishes fresh baselines instead of replaying old actions. Bridge exposes its latest rotary report, not every physical detent; polling cannot recover overwritten movement.
 
