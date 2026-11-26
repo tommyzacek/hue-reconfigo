@@ -2,21 +2,27 @@
 
 import aiohttp
 
-from .api import BridgeError
+from .api import BridgeAuthenticationError, BridgeError, check_authentication
 
 
 async def request(client, kind, resource=None, body=None):
     host, key = client.credentials()
     url = f"https://{host}/clip/v2/resource/{kind}" + (f"/{resource}" if resource else "")
     method = client.session.get if body is None else client.session.put
-    kwargs = {"headers": {"hue-application-key": key}, "timeout": aiohttp.ClientTimeout(total=5)}
+    kwargs = {
+        "headers": {"hue-application-key": key},
+        "timeout": aiohttp.ClientTimeout(total=5),
+        "allow_redirects": False,
+    }
     if body is not None:
         kwargs["json"] = body
     try:
         async with method(url, **kwargs) as response:
+            check_authentication(response.status)
             if response.status not in ((200,) if body is None else (200, 207)):
                 raise BridgeError(f"Hue configuration HTTP status {response.status}")
             payload = await response.json()
+            check_authentication(response.status, payload)
             if (
                 not isinstance(payload, dict)
                 or payload.get("errors")
@@ -66,6 +72,8 @@ async def save_settings(client, owner, device, binding):
         for kind, rid, new, old in plan:
             applied.append((kind, rid, old))
             await request(client, kind, rid, new)
+    except BridgeAuthenticationError:
+        raise
     except BridgeError:
         for kind, rid, old in reversed(applied):
             try:

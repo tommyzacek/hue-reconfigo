@@ -6,9 +6,9 @@ from homeassistant.components import frontend
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 
-from .api import BridgeError
+from .api import BridgeAuthenticationError, BridgeError
 from .configuration import controller_binding, initialize_controllers, update_brand_title
 from .panel import async_setup_panel, async_unload_panel
 from .runtime import Runtime
@@ -17,6 +17,12 @@ type HueReconfigoEntry = ConfigEntry[Runtime]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: HueReconfigoEntry) -> bool:
+    if not all(
+        isinstance(entry.data.get(field), str) and entry.data[field]
+        for field in ("host", "api_key")
+    ):
+        # Legacy entries must authorize this integration before any Bridge request.
+        raise ConfigEntryAuthFailed("Pair Hue Reconfigo with the Hue Bridge")
     if not hass.data.get("hrc_motion_frontend"):
         await hass.http.async_register_static_paths(
             [
@@ -32,6 +38,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: HueReconfigoEntry) -> bo
     runtime = Runtime(hass, entry)
     try:
         await runtime.initialize()
+    except BridgeAuthenticationError as err:
+        raise ConfigEntryAuthFailed("Pair Hue Reconfigo with the Hue Bridge") from err
     except BridgeError as err:
         raise ConfigEntryNotReady(str(err)) from err
     entry.runtime_data = runtime

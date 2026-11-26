@@ -15,6 +15,8 @@
 
 Hue Reconfigo vyžaduje Home Assistant **2026.10.1 nebo novější**, Hue Bridge s API v2 a nastavenou oficiální integraci **Philips Hue**. Její zařízení ani entity nenahrazuje. Vlastní panel se přidá automaticky a je dostupný správcům HA.
 
+Hue Reconfigo se s vybraným Bridge páruje samostatně a ukládá si vlastní aplikační klíč. Až vás nastavení vyzve, stiskněte párovací tlačítko Bridge. Aktualizace stávající položky na 1.2.0 vyžaduje toto spárování jednou a zachovává ovladače i jejich nastavení. Viz [párování a obnovení připojení](bridge.md#párování-a-obnovení-připojení).
+
 **Adaptive Lighting je volitelná integrace z HACS**, nikoli součást oficiální Hue integrace. Bez ní Hue Reconfigo normálně funguje. Pokud ji používáte, můžete zapnout [spolupráci v nastavení Bridge](bridge.md#spolupráce-s-adaptive-lighting).
 
 V postranním panelu otevřete **Hue Reconfigo → váš Bridge → skupinu ovladačů → konkrétní zařízení**. Nové ovladače mají ovládání vypnuté. Nastavení se uplatní po odeslání formuláře.

@@ -1,3 +1,25 @@
+# v1.2.0 — Independent Hue Bridge pairing
+
+**Stable release. Requires Home Assistant 2026.10.1+.**
+
+Hue Reconfigo now pairs with the selected Bridge using its own application key. Confirm the Bridge address, press its physical link button and submit the pairing form. Direct Bridge requests no longer use the official Hue integration's stored key. The official integration remains required for mapping devices/entities and receiving native events and sensor states.
+
+Existing installations require this pairing once after updating. Complete the reauthentication on the existing Hue Reconfigo entry to preserve all controller settings and identifiers. Reconfigure supports pairing again if the address or key changes. Controller behavior is otherwise unchanged.
+
+## Česky
+
+Hue Reconfigo se nově páruje s vybraným Bridge pomocí vlastního aplikačního klíče. Potvrďte adresu Bridge, stiskněte jeho fyzické párovací tlačítko a odešlete formulář. Přímé požadavky už nepoužívají uložený klíč oficiální integrace Hue. Ta zůstává potřebná pro přiřazení zařízení a entit i příjem událostí a stavů senzorů.
+
+Po aktualizaci dokončete jednorázové nové ověření u stávající položky Hue Reconfigo. Nastavení ovladačů i identifikátory se zachovají. Překonfigurování umožní obnovit párování při změně adresy nebo klíče. Ostatní chování ovladačů se nemění.
+
+## Slovensky
+
+Hue Reconfigo sa po novom páruje s vybraným Bridge pomocou vlastného aplikačného kľúča. Potvrďte adresu Bridge, stlačte jeho fyzické párovacie tlačidlo a odošlite formulár. Priame požiadavky už nepoužívajú uložený kľúč oficiálnej integrácie Hue. Tá zostáva potrebná na priradenie zariadení a entít aj príjem udalostí a stavov senzorov.
+
+Po aktualizácii dokončite jednorazové nové overenie pri existujúcej položke Hue Reconfigo. Nastavenia ovládačov aj identifikátory sa zachovajú. Prekonfigurovanie umožní obnoviť párovanie pri zmene adresy alebo kľúča. Ostatné správanie ovládačov sa nemení.
+
+---
+
 # v1.1.0 — Complete Hue Reconfigo rename
 
 **Stable release. Requires Home Assistant 2026.10.1+.**

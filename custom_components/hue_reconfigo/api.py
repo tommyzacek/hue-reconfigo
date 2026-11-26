@@ -15,6 +15,24 @@ class BridgeError(Exception):
         self.retry_after = retry_after
 
 
+class BridgeAuthenticationError(BridgeError):
+    """The bridge rejected Hue Reconfigo's own application key."""
+
+
+def check_authentication(status: int, payload: Any = None) -> None:
+    """Classify credential failures without exposing server text or credentials."""
+    if status in (401, 403):
+        raise BridgeAuthenticationError("Hue Reconfigo bridge authentication failed")
+    errors = payload.get("errors", []) if isinstance(payload, dict) else payload
+    if isinstance(errors, list):
+        for item in errors:
+            if not isinstance(item, dict):
+                continue
+            error = item.get("error", item)
+            if isinstance(error, dict) and error.get("type") in (1, "1"):
+                raise BridgeAuthenticationError("Hue Reconfigo bridge authentication failed")
+
+
 def retry_delay(response) -> float:
     try:
         return max(0, float(response.headers.get("Retry-After", 0)))
@@ -39,8 +57,10 @@ class BridgeClient:
             async with self.session.get(
                 f"https://{host}/clip/v2/resource/relative_rotary",
                 headers={"hue-application-key": key},
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=3),
             ) as response:
+                check_authentication(response.status)
                 if response.status != 200:
                     try:
                         retry_after = max(0, float(response.headers.get("Retry-After", 0)))
@@ -48,6 +68,7 @@ class BridgeClient:
                         retry_after = 0
                     raise BridgeError(f"Hue HTTP status {response.status}", retry_after)
                 payload = await response.json()
+                check_authentication(response.status, payload)
                 if (
                     not isinstance(payload, dict)
                     or payload.get("errors")
@@ -66,11 +87,14 @@ class BridgeClient:
             async with self.session.get(
                 f"https://{host}/clip/v2/resource/device",
                 headers={"hue-application-key": key},
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=3),
             ) as response:
+                check_authentication(response.status)
                 if response.status != 200:
                     raise BridgeError(f"Hue HTTP status {response.status}", retry_delay(response))
                 payload = await response.json()
+                check_authentication(response.status, payload)
                 if (
                     not isinstance(payload, dict)
                     or payload.get("errors")
@@ -88,11 +112,14 @@ class BridgeClient:
             async with self.session.get(
                 f"https://{host}/clip/v2/resource/button",
                 headers={"hue-application-key": key},
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=3),
             ) as response:
+                check_authentication(response.status)
                 if response.status != 200:
                     raise BridgeError(f"Hue HTTP status {response.status}", retry_delay(response))
                 payload = await response.json()
+                check_authentication(response.status, payload)
                 if (
                     not isinstance(payload, dict)
                     or payload.get("errors")
@@ -132,9 +159,12 @@ class BridgeClient:
             async with self.session.get(
                 f"https://{host}/clip/v2/resource/{resource_type}/{resource_id}",
                 headers={"hue-application-key": key},
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=3),
             ) as response:
+                check_authentication(response.status)
                 payload = await response.json()
+                check_authentication(response.status, payload)
                 if (
                     response.status != 200
                     or not isinstance(payload, dict)
@@ -205,9 +235,12 @@ class BridgeClient:
                 f"https://{host}/clip/v2/resource/{resource_type}/{resource_id}",
                 headers={"hue-application-key": key},
                 json=body,
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=3),
             ) as response:
+                check_authentication(response.status)
                 payload = await response.json()
+                check_authentication(response.status, payload)
                 if response.status != 200 or not isinstance(payload, dict) or payload.get("errors"):
                     raise BridgeError(f"Hue HTTP status {response.status}")
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:
@@ -220,8 +253,10 @@ class BridgeClient:
             async with self.session.get(
                 f"https://{host}/eventstream/clip/v2",
                 headers={"hue-application-key": key, "Accept": "text/event-stream"},
+                allow_redirects=False,
                 timeout=aiohttp.ClientTimeout(total=None, sock_connect=3, sock_read=90),
             ) as response:
+                check_authentication(response.status)
                 if response.status != 200:
                     raise BridgeError(
                         f"Hue event HTTP status {response.status}", retry_delay(response)
@@ -234,6 +269,7 @@ class BridgeClient:
                     elif not line and data:
                         payload = json.loads("\n".join(data))
                         data.clear()
+                        check_authentication(response.status, payload)
                         if not isinstance(payload, list):
                             raise BridgeError("Invalid Hue event response")
                         yield payload

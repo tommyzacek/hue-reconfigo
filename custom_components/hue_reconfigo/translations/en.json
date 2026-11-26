@@ -82,15 +82,31 @@
     "step": {
       "user": {
         "title": "Select your Hue bridge",
-        "description": "Select a loaded official Philips Hue v2 integration. No additional pairing is needed.",
+        "description": "Select a loaded official Philips Hue v2 integration. Hue Reconfigo will then pair with that Bridge using its own application key.",
         "data": {
           "hue_entry_id": "Hue bridge"
+        }
+      },
+      "pair": {
+        "title": "Pair Hue Reconfigo with your Bridge",
+        "description": "Check the address of the selected Bridge, press its physical link button, then submit. Hue Reconfigo creates its own application key. Existing controller settings are kept.",
+        "data": {
+          "host": "Bridge address"
         }
       }
     },
     "abort": {
       "no_hue": "Configure and load the official Philips Hue v2 integration first.",
-      "already_configured": "This bridge is already configured."
+      "already_configured": "This bridge is already configured.",
+      "reauth_successful": "Bridge paired again. Your existing settings have been preserved.",
+      "reconfigure_successful": "Bridge connection updated. Your existing settings have been preserved.",
+      "wrong_account": "Pair with the Bridge already selected for this integration."
+    },
+    "error": {
+      "link_button_not_pressed": "Press the physical link button on the selected Hue Bridge, then try again.",
+      "cannot_connect": "Cannot connect to the Hue Bridge. Check its address and network connection.",
+      "wrong_bridge": "This address belongs to a different Hue Bridge. Use the Bridge selected for this integration.",
+      "invalid_host": "Enter a valid Bridge IP address or hostname, without a URL, port or path."
     }
   },
   "options": {

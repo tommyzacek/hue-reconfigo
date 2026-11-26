@@ -15,6 +15,8 @@
 
 Hue Reconfigo requires Home Assistant **2026.10.1 or newer**, a Hue Bridge with API v2 and the configured official **Philips Hue** integration. It does not replace its devices or entities. Its panel is installed automatically and is available to HA administrators.
 
+Hue Reconfigo pairs separately with the selected Bridge and stores its own application key. Press the Bridge link button when the setup asks you to. Updating an existing entry to 1.2.0 requires this pairing once and preserves its controllers and settings. See [pairing and reconnection](bridge.md#pairing-and-reconnection).
+
 **Adaptive Lighting is an optional integration from HACS**, not part of the official Hue integration. Hue Reconfigo works without it. If you use it, enable [cooperation in Bridge settings](bridge.md#adaptive-lighting-cooperation).
 
 Open **Hue Reconfigo → your Bridge → controller group → device** in the sidebar. New controllers start disabled. Settings take effect when you submit the form.

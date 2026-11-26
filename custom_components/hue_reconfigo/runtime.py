@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigEntryState
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_KEY, CONF_HOST
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers import aiohttp_client
@@ -16,7 +16,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.storage import Store
 
 from .adaptive import AdaptiveCooperation
-from .api import BridgeClient, BridgeError
+from .api import BridgeAuthenticationError, BridgeClient, BridgeError
 from .bindings import (
     button_actions,
     button_long_mode,
@@ -74,6 +74,8 @@ class Runtime:
         self.wake = asyncio.Event()
         self.active_until = 0.0
         self.closed = False
+        self._close_lock = asyncio.Lock()
+        self._close_complete = False
         self.task: asyncio.Task | None = None
         self.unsubscribe: Callable[[], None] | None = None
         self.client = BridgeClient(
@@ -135,14 +137,21 @@ class Runtime:
         )
 
     def credentials(self) -> tuple[str, str]:
-        """Isolate the dependency on Hue's config-entry credential field names."""
-        source = self.hass.config_entries.async_get_entry(self.entry.data[CONF_HUE_ENTRY])
-        if source is None or source.state is not ConfigEntryState.LOADED:
-            raise BridgeError("Selected Hue integration is not loaded")
-        try:
-            return source.data[CONF_HOST], source.data[CONF_API_KEY]
-        except KeyError as err:
-            raise BridgeError("Selected Hue entry has unsupported credentials") from err
+        """Use only this integration's own Bridge authorization."""
+        host, key = self.entry.data.get(CONF_HOST), self.entry.data.get(CONF_API_KEY)
+        if not isinstance(host, str) or not host or not isinstance(key, str) or not key:
+            raise BridgeAuthenticationError("Hue Reconfigo requires its own Bridge pairing")
+        return host, key
+
+    @callback
+    def authentication_failed(self) -> None:
+        """Stop workers and request one reauthentication when our key is revoked."""
+        if self.closed:
+            return
+        self.available = False
+        self.closed = True
+        self.entry.async_start_reauth(self.hass)
+        self.create_task(self.close())
 
     async def initialize(self) -> None:
         await self.percentage.load()
@@ -164,6 +173,8 @@ class Runtime:
                     and e.entity_id.startswith("light.")
                 }
                 self.motion_groups = hue_group_members(devices, groups, entities)
+            except BridgeAuthenticationError:
+                raise
             except BridgeError:
                 _LOGGER.warning(
                     "Hue room membership unavailable; only exposed HA group members can be resolved"
@@ -256,6 +267,8 @@ class Runtime:
         self.motion.event(resource, binding, new.state == "on")
 
     def control_allowed(self, resource, binding=None):
+        if self.closed:
+            return False
         binding = binding or controller_binding(self.entry, resource)
         family = (
             binding.get("controller_kind")
@@ -474,6 +487,9 @@ class Runtime:
                     for resource_type, resource_id in resources
                 )
             )
+        except BridgeAuthenticationError:
+            self.authentication_failed()
+            return
         except Exception as err:
             _LOGGER.warning("Unable to read current Hue brightness: %s", err)
             levels = [max(0.0, min(100.0, self.read_brightness(state["lights"]) or 0.0))]
@@ -525,6 +541,8 @@ class Runtime:
         delta: float,
         duration_ms: int,
     ) -> None:
+        if self.closed:
+            return
         results = await asyncio.gather(
             *(
                 self.client.brightness_delta(resource_type, resource_id, delta, duration_ms)
@@ -533,12 +551,17 @@ class Runtime:
             return_exceptions=True,
         )
         for result in results:
+            if isinstance(result, BridgeAuthenticationError):
+                self.authentication_failed()
+                return
             if isinstance(result, Exception):
                 _LOGGER.warning("Unable to update native Hue dimming", exc_info=result)
 
     async def _send_hue_transition(
         self, resources: tuple[tuple[str, str], ...], brightness: float, duration_ms: int
     ) -> None:
+        if self.closed:
+            return
         results = await asyncio.gather(
             *(
                 self.client.brightness_transition(
@@ -549,6 +572,9 @@ class Runtime:
             return_exceptions=True,
         )
         for result in results:
+            if isinstance(result, BridgeAuthenticationError):
+                self.authentication_failed()
+                return
             if isinstance(result, Exception):
                 _LOGGER.warning("Unable to start native Hue dimming", exc_info=result)
 
@@ -561,6 +587,9 @@ class Runtime:
                 try:
                     for resource_type, resource_id in resources:
                         await self.client.stop_dimming(resource_type, resource_id)
+                except BridgeAuthenticationError:
+                    self.authentication_failed()
+                    return
                 except BridgeError:
                     fallback[entity] = brightness
             else:
@@ -583,6 +612,9 @@ class Runtime:
             return_exceptions=True,
         )
         for result in results:
+            if isinstance(result, BridgeAuthenticationError):
+                self.authentication_failed()
+                return
             if isinstance(result, Exception):
                 _LOGGER.warning("Unable to stop native Hue dimming", exc_info=result)
 
@@ -734,6 +766,9 @@ class Runtime:
                 failures = 0
                 self.button_baselined = True
                 delay = self.button_poll_delay(interval, started)
+            except BridgeAuthenticationError:
+                self.authentication_failed()
+                return
             except BridgeError as err:
                 self.button_error_count += 1
                 failures += 1
@@ -800,6 +835,9 @@ class Runtime:
                 async for envelopes in self.client.button_events():
                     failures = 0
                     self.consume_buttons(envelopes)
+            except BridgeAuthenticationError:
+                self.authentication_failed()
+                return
             except BridgeError as err:
                 failures += 1
                 self.gestures.cancel()
@@ -841,6 +879,9 @@ class Runtime:
                     binding = controller_binding(self.entry, report.resource_id)
                     self.rotate_dial(report.resource_id, binding, report.signed_steps)
                 delay = max(0, interval - (time.monotonic() - started))
+            except BridgeAuthenticationError:
+                self.authentication_failed()
+                return
             except BridgeError as err:
                 self.error_count += 1
                 self.available = False
@@ -912,6 +953,8 @@ class Runtime:
     async def send_brightness(
         self, lights: tuple[str, ...], brightness: float, transition: float
     ) -> None:
+        if self.closed:
+            return
         if brightness <= 0:
             self.motion.manual_action(lights, off=True)
         await self.adaptive.mark(lights)
@@ -994,6 +1037,8 @@ class Runtime:
                     self.button_ramp_timestamps.pop(key, None)
                     if ramp.get("resources"):
                         await self._cancel_and_stop_native(ramp["resources"])
+            if self.closed:
+                return
             operation, percentage = button_operation(binding, index, action)
             if domain == "light" and (startup is not None or operation in ("on", "off")):
                 await self.light_button_action(selected, startup or {}, saved_levels, operation)
@@ -1008,6 +1053,9 @@ class Runtime:
                         if resources:
                             try:
                                 actual = await self.client.read_brightness(*resources[0])
+                            except BridgeAuthenticationError:
+                                self.authentication_failed()
+                                return
                             except BridgeError:
                                 pass
                     await self.percentage.action(entity, operation, percentage, actual)
@@ -1034,6 +1082,8 @@ class Runtime:
 
     async def light_button_action(self, selected, startup, saved_levels, operation="toggle"):
         """Share Motion's startup appearance and pre-fade brightness recovery."""
+        if self.closed:
+            return
         lights = sorted(self.motion.expand(selected))
         any_on = any(
             (state := self.hass.states.get(entity)) is not None and state.state == "on"
@@ -1051,6 +1101,9 @@ class Runtime:
                         actual = await self.client.read_brightness(*resources[0])
                         if actual is not None:
                             level = round(actual * 255 / 100)
+                    except BridgeAuthenticationError:
+                        self.authentication_failed()
+                        return
                     except BridgeError:
                         pass
                 if isinstance(level, (int, float)) and 0 < level <= 255:
@@ -1072,33 +1125,37 @@ class Runtime:
         await self.motion.turn_on(lights, {"motion_start": startup})
 
     async def close(self) -> None:
-        self.closed = True
-        if self.motion_unsubscribe:
-            self.motion_unsubscribe()
-        await self.motion.close()
-        self.dial_routing.close()
-        if self.unsubscribe:
-            self.unsubscribe()
-        if self.task:
-            self.task.cancel()
-            await asyncio.gather(self.task, return_exceptions=True)
-        self.gestures.cancel()
-        resources = {
-            state["resources"]
-            for state in self.button_ramp_states.values()
-            if state.get("resources")
-        }
-        self.button_ramp_states.clear()
-        for selected in resources:
-            await self._cancel_and_stop_native(selected)
-        tasks = list(self.action_tasks)
-        if self.button_task:
-            tasks.append(self.button_task)
-        if self.button_poll_task:
-            tasks.append(self.button_poll_task)
-        for task in tasks:
-            task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        await self.dimmer.close()
-        await self.percentage.close()
+        async with self._close_lock:
+            if self._close_complete:
+                return
+            self.closed = True
+            if self.motion_unsubscribe:
+                self.motion_unsubscribe()
+            await self.motion.close()
+            self.dial_routing.close()
+            if self.unsubscribe:
+                self.unsubscribe()
+            if self.task:
+                self.task.cancel()
+                await asyncio.gather(self.task, return_exceptions=True)
+            self.gestures.cancel()
+            resources = {
+                state["resources"]
+                for state in self.button_ramp_states.values()
+                if state.get("resources")
+            }
+            self.button_ramp_states.clear()
+            for selected in resources:
+                await self._cancel_and_stop_native(selected)
+            tasks = list(self.action_tasks)
+            if self.button_task:
+                tasks.append(self.button_task)
+            if self.button_poll_task:
+                tasks.append(self.button_poll_task)
+            for task in tasks:
+                task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            await self.dimmer.close()
+            await self.percentage.close()
+            self._close_complete = True
